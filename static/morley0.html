@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Morley's Miracle</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  <script src="js/jcanvas.min.js"></script>
+  <script>
+  /*
+  Copyright 2015 Bryn Baritompa
+  Released under the MIT license
+  
+  uses jCanvas v15.09.04
+  Copyright 2015 Caleb Evans
+  Released under the MIT license
+  */
+
+  //initiate globals
+  var pi = 3.1415926535;
+  var flip = false;//globally set to true when triangle turned inside out.
+  var triangleEdge0,triangleEdge1,triangleEdge2;//main triangle edge Line objects
+  var triangleVertex0,triangleVertex1,triangleVertex2;//main triangle vertex Point objects
+  var theta0,theta1,theta2;//main triangle edge angles (from point 1->2->3)
+  var trisector0_0,trisector0_1,trisector1_0,trisector1_1,trisector2_0,trisector2_1;//internal trisector Line objects
+  var intersectionCoords0,intersectionCoords1,intersectionCoords2;//internal trisector intersection coordinates [x,y]
+  var intersectionPoint0,intersectionPoint1,intersectionPoint2;//internal intersection Point objects
+  
+  //define Line and Point objects and set/get methods 
+  function Line(){
+  }
+  Line.prototype.initCartesian = function(x0,y0,x1,y1,name,strokeWidth) {
+    this.x0 = x0;
+    this.y0 = y0;
+    this.x1 = x1;
+    this.y1 = y1;
+    this.name = name;
+    $('canvas').drawLine({
+      layer: true,
+      name: this.name,
+      groups: ['lines'],
+      index:0,
+      strokeStyle: '#000',
+      strokeWidth: strokeWidth || 2,
+      x1: this.x0, y1: this.y0,
+      x2: this.x1, y2: this.y1
+    })
+    .drawLayers();
+    return this;
+  };
+  Line.prototype.initPolar = function(x0,y0,r,theta,name,strokeWidth) {
+    this.x0 = x0;
+    this.y0 = y0;
+    this.x1 = x0+r*Math.cos(theta);
+    this.y1 = y0-r*Math.sin(theta);
+    this.name = name;
+    $('canvas').drawLine({
+      layer: true,
+      name: this.name,
+      groups: ['lines'],
+      index:0,
+      strokeStyle: '#000',
+      strokeWidth: strokeWidth || 2,
+      x1: this.x0, y1: this.y0,
+      x2: this.x1, y2: this.y1
+    });
+    return this;
+  };
+  Line.prototype.setCartesian = function(x0,y0,x1,y1) {
+    this.x0 = x0;
+    this.y0 = y0;
+    this.x1 = x1;
+    this.y1 = y1;
+    $('canvas').setLayer(this.name,{
+      x1: this.x0, y1: this.y0,
+      x2: this.x1, y2: this.y1
+    });
+  };
+  Line.prototype.setPolar = function(x0,y0,r,theta) {
+    this.x0 = x0;
+    this.y0 = y0;
+    this.x1 = x0+r*Math.cos(theta);
+    this.y1 = y0-r*Math.sin(theta);
+    $('canvas').setLayer(this.name,{
+      x1: this.x0, y1: this.y0,
+      x2: this.x1, y2: this.y1
+    });
+  };
+  Line.prototype.getTheta = function() {
+    var theta = Math.atan2(-(this.y1-this.y0),this.x1-this.x0);//-y used to make up positive y axis
+    return theta;
+  };
+  
+  function Point(x,y,name,dragFunction,radius,color,draggable){
+    this.x = x;
+    this.y = y;
+    this.name = name;
+    $("canvas").drawArc({
+      layer: true,
+      name: this.name,
+      groups: ['points'],
+      index:0,
+      draggable: draggable || false,
+      fillStyle: color || "red",
+      x: this.x, y: this.y,
+      radius: radius || 5,
+      drag: dragFunction
+    });
+  }
+  Point.prototype.setCartesian = function(x,y){
+    this.x = x;
+    this.y = y;
+    $('canvas').setLayer(this.name,{
+      x: this.x, y: this.y,
+    });
+  };
+  
+  //find acute angle between two lines at angles a0,a1
+  function acuteAngle(a0,a1){
+    var a2 = a0-a1;
+    if (a2<0) {a2  = a2 + 2*pi;}
+    if (a2>pi){a2  = 2*pi - a2;}
+    return a2;
+  }
+  
+  //find angles of trisectors of acute angle between two lines at angles a0,a1
+  function trisectAngle(a0,a1){
+    var a2 = acuteAngle(a0,a1);
+    if (a1>0){
+      if (a0>a1||a0<(a1-pi)){
+        flip = true;
+      }
+      else{
+        flip = false;
+      }
+    }
+    else{
+      if (a0<a1||a0>(a1+pi)){
+        flip = false;
+      }
+      else{
+        flip = true;
+      }
+    }
+
+    if (flip){
+      return [a1+a2*1/3,a1+a2*2/3];
+    }
+    else{
+      return [a0+a2*1/3,a0+a2*2/3];
+    }
+  }
+  
+  //give angle of line in oposite direction to input angle (from -pi to pi)
+  function reverse(theta0){
+    theta0 = pi + theta0;
+    if(theta0>pi){theta0 = theta0 -2*pi;}
+    return theta0;
+  }
+  
+  //find intersection coordinates [x,y] of two line objects
+  function intersectLines(l0,l1){
+    var d = (l0.x0-l0.x1)*(l1.y0-l1.y1)-(l0.y0-l0.y1)*(l1.x0-l1.x1);
+    var x,y;
+    if (d!=0){
+      x = ((l0.x0*l0.y1-l0.y0*l0.x1)*(l1.x0-l1.x1)-(l0.x0-l0.x1)*(l1.x0*l1.y1-l1.y0*l1.x1))/d;
+      y = ((l0.x0*l0.y1-l0.y0*l0.x1)*(l1.y0-l1.y1)-(l0.y0-l0.y1)*(l1.x0*l1.y1-l1.y0*l1.x1))/d;
+    }
+    else{x=null;y=null;}
+    return [x,y];
+  }
+
+  //calculates diagram and redraws canvas
+  function update(){
+    //get triangle vertex coordinates from canvas
+    triangleVertex0.x = $('canvas').getLayer('triangleVertex0')["x"];
+    triangleVertex0.y = $('canvas').getLayer('triangleVertex0')["y"];
+    triangleVertex1.x = $('canvas').getLayer('triangleVertex1')["x"];
+    triangleVertex1.y = $('canvas').getLayer('triangleVertex1')["y"];
+    triangleVertex2.x = $('canvas').getLayer('triangleVertex2')["x"];
+    triangleVertex2.y = $('canvas').getLayer('triangleVertex2')["y"];
+    
+    //update main triangle edges
+    triangleEdge0.setCartesian(triangleVertex0.x,triangleVertex0.y,triangleVertex1.x,triangleVertex1.y);
+    triangleEdge1.setCartesian(triangleVertex1.x,triangleVertex1.y,triangleVertex2.x,triangleVertex2.y);
+    triangleEdge2.setCartesian(triangleVertex2.x,triangleVertex2.y,triangleVertex0.x,triangleVertex0.y);
+    
+    //calculate and update trisectors
+    theta0 = triangleEdge0.getTheta();
+    theta1 = triangleEdge1.getTheta();
+    theta2 = triangleEdge2.getTheta();
+    trisector0_0.setPolar(triangleVertex0.x,triangleVertex0.y,1500,trisectAngle(theta0,reverse(theta2))[0]);
+    trisector0_1.setPolar(triangleVertex0.x,triangleVertex0.y,1500,trisectAngle(theta0,reverse(theta2))[1]);
+    trisector1_0.setPolar(triangleVertex1.x,triangleVertex1.y,1500,trisectAngle(theta1,reverse(theta0))[0]);
+    trisector1_1.setPolar(triangleVertex1.x,triangleVertex1.y,1500,trisectAngle(theta1,reverse(theta0))[1]);
+    trisector2_0.setPolar(triangleVertex2.x,triangleVertex2.y,1500,trisectAngle(theta2,reverse(theta1))[0]);
+    trisector2_1.setPolar(triangleVertex2.x,triangleVertex2.y,1500,trisectAngle(theta2,reverse(theta1))[1]);
+    
+    //calculate intersection coordinates
+    if (flip==false){
+      intersectionCoords0 = intersectLines(trisector0_0,trisector1_1);
+      intersectionCoords1 = intersectLines(trisector1_0,trisector2_1);
+      intersectionCoords2 = intersectLines(trisector2_0,trisector0_1);
+    }
+    else{
+      intersectionCoords0 = intersectLines(trisector0_1,trisector1_0);
+      intersectionCoords1 = intersectLines(trisector1_1,trisector2_0);
+      intersectionCoords2 = intersectLines(trisector2_1,trisector0_0);
+    }
+    //place intersection points (red circles)
+    intersectionPoint0.setCartesian(intersectionCoords0[0],intersectionCoords0[1]);
+    intersectionPoint1.setCartesian(intersectionCoords1[0],intersectionCoords1[1]);
+    intersectionPoint2.setCartesian(intersectionCoords2[0],intersectionCoords2[1]);
+    
+    //update internal triangle
+    $('canvas').setLayer('internalTriangle',{
+      x1: intersectionCoords0[0], y1: intersectionCoords0[1],
+      x2: intersectionCoords1[0], y2: intersectionCoords1[1],
+      x3: intersectionCoords2[0], y3: intersectionCoords2[1]
+    })
+    .drawLayers();
+    
+    //$('#output0').text(flip);
+  }
+
+
+  $( document ).ready(function() {
+    //resize canvas to window size
+    var canvas = document.getElementById('canvas');
+      canvas.width  = $(window).width()-30;
+      canvas.height = $(window).height()-30;
+      
+    //Initialize main triangle vertices 
+    triangleVertex0 = new Point(100,100,'triangleVertex0',update,25,'green','draggable');
+    triangleVertex1 = new Point(100,500,'triangleVertex1',update,25,'green','draggable');
+    triangleVertex2 = new Point(500,100,'triangleVertex2',update,25,'green','draggable');
+    
+    //Initialize main triangle edges
+    triangleEdge0 = new Line().initCartesian(triangleVertex0.x,triangleVertex0.y,triangleVertex1.x,triangleVertex1.y,'triangleEdge0',10);
+    triangleEdge1 = new Line().initCartesian(triangleVertex1.x,triangleVertex1.y,triangleVertex2.x,triangleVertex2.y,'triangleEdge1',10);
+    triangleEdge2 = new Line().initCartesian(triangleVertex2.x,triangleVertex2.y,triangleVertex0.x,triangleVertex0.y,'triangleEdge2',10);
+    
+    //initialize intersection points
+    intersectionPoint0 = new Point(50,50,'ip0');
+    intersectionPoint1 = new Point(50,50,'ip1');
+    intersectionPoint2 = new Point(50,50,'ip2');
+    
+    //Initialize trisectors
+    trisector0_0 = new Line().initCartesian(0,0,0,0,'trisector0_0');
+    trisector0_1 = new Line().initCartesian(0,0,0,0,'trisector0_1');
+    trisector1_0 = new Line().initCartesian(0,0,0,0,'trisector1_0');
+    trisector1_1 = new Line().initCartesian(0,0,0,0,'trisector1_1');
+    trisector2_0 = new Line().initCartesian(0,0,0,0,'trisector2_0');
+    trisector2_1 = new Line().initCartesian(0,0,0,0,'trisector2_1');
+    
+    //initialize internal triangle
+    $('canvas').drawLine({
+      layer: true,
+      name: 'internalTriangle',
+      index: 0,
+      strokeStyle: '#000',
+      strokeWidth: 3,
+      x1: 100, y1: 50,
+      x2: 100, y2: 150,
+      x3: 200, y3: 100,
+      closed: true,
+      fillStyle: '#36b',
+    });
+    
+    //calculate intersections and draw canvas
+    update();
+
+  });
+  
+  //resize canvas to window size and update on window resize
+  $(window).resize(function(){
+      var canvas = document.getElementById('canvas');
+      canvas.width  = $(window).width()-30;
+      canvas.height = $(window).height()-30;
+      update();
+  });
+
+  </script>
+</head>
+<body>
+
+<canvas width="1200" height="650" id='canvas'></canvas>
+<br>
+<!--<span id="output0">test</span><br>-->
+</body>
+</html>
