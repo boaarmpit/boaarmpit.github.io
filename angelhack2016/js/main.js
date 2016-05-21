@@ -9,10 +9,14 @@ function write(content) {
 
 function detectGreeting(text){
     if (dictEN.indexOf(text) >= 0){
-        write("English")
+        write("English");
+        $('.ans1').fadeOut(100);
+	    $('.ans3').fadeIn(800);
     }
     else if (dictJP.indexOf(text) >= 0){
-        write("日本語")
+        write("日本語");
+        $('.ans3').fadeOut(100);
+	    $('.ans1').fadeIn(800);
     }
 }
 
