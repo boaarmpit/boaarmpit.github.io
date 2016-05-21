@@ -28,20 +28,29 @@ function write(content) {
 
 function detectGreeting(text){
     if (dictCH.indexOf(text) >= 0){
+        state="cmn-Hans-CN";
         write("中文");
         $('.ans').fadeOut(100);
 	    $('.ans2').fadeIn(600);
     }
     else if (dictEN.indexOf(text) >= 0){
+        state="en-NZ";
         write("English");
         $('.ans').fadeOut(100);
 	    $('.ans3').fadeIn(600);
     }
     else if (dictKO.indexOf(text) >= 0){
+        state="ko-KR";
         write("한국어");
         $('.ans').fadeOut(100);
 	    $('.ans4').fadeIn(600);
     }
+//    else if (dictJP.indexOf(text) >= 0){
+//        state="ja-JP";
+//        write("日本語");
+//        $('.ans').fadeOut(100);
+//	    $('.ans1').fadeIn(600);
+//    }
 }
 
 var recognitionEN = new webkitSpeechRecognition();
@@ -58,7 +67,12 @@ recognitionEN.onresult = function(event) {
 recognitionEN.onerror = function(event) {console.log("error EN")};
 recognitionEN.onend = function() {
 	console.log("end EN");
-	recognitionCH.start();
+	if(state=="cmn-Hans-CN"){
+	    recognitionKO.start();
+	}
+	else{
+	    recognitionCH.start();
+	}
 };
 
 //var recognitionJP = new webkitSpeechRecognition();
@@ -92,7 +106,12 @@ recognitionCH.onresult = function(event) {
 recognitionCH.onerror = function(event) {console.log("error CH")};
 recognitionCH.onend = function() {
 	console.log("end CH");
-	recognitionKO.start();
+	if(state=="ko-KR"){
+	    recognitionEN.start();
+	}
+	else{
+	    recognitionKO.start();
+	}
 };
 
 
@@ -110,8 +129,14 @@ recognitionKO.onresult = function(event) {
 recognitionKO.onerror = function(event) {console.log("error KO")};
 recognitionKO.onend = function() {
 	console.log("end KO");
-	recognitionEN.start();
+	if(state=="en-NZ"){
+	    recognitionCH.start();
+	}
+	else{
+	    recognitionEN.start();
+	}
 };
 
 
+var state="";
 recognitionEN.start();
