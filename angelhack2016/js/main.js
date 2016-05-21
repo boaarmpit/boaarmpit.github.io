@@ -1,12 +1,17 @@
+dictEN=["English","hello","hi","hey","ハロウィン","鯖江","やま","やまだ","浜","キャロル","ヘブン","多摩","塩分","援護","engrish","イングリッシュ","ハイ","はい"]
+dictJP=["日本語","こんにちは","今日は","おはよう","おはようございます","Young","younger","hung","hunger","hungry","jungle","nihongo","furniture","Carnage",
+"konichiwa","Connie","Concho","Ohio","Iowa","ohayo","ohayo gozaimasu"]
+
+
 function write(content) {
      document.getElementById('output').innerText = content;
 }
 
 function detectGreeting(text){
-    if (text=="hello"){
+    if (dictEN.indexOf(text) >= 0){
         write("English")
     }
-    else if (text=="こんにちは"){
+    else if (dictJP.indexOf(text) >= 0){
         write("日本語")
     }
 }
