@@ -1,7 +1,7 @@
-/*@font-face {
+@font-face {
     font-family: 'font1';
     src: url("../font/NotoSansCJKtc-Regular.otf");
-    }*/
+    }
 
 @font-face {
     font-family: 'font2';
@@ -31,7 +31,7 @@ body , html {
 }
 
 #output {
-  display: none;
+    display: none;
 }
 
 #container {
