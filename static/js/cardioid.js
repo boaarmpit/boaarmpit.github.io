@@ -21,16 +21,16 @@ function reset(){
     stop();
 
     var initialValue = 2;
-    if (getQueryVariable("value")){
+    if (typeof getQueryVariable("value") == "number"){
         initialValue = getQueryVariable("value");
     }
     var initialSpeed = 3;
-    if (getQueryVariable("speed")){
+    if (typeof getQueryVariable("speed") == "number"){
         initialSpeed = getQueryVariable("speed");
     }
 
     valueSlider.value(initialValue);
-    speedSlider.value(sqrt(initialSpeed));
+    speedSlider.value(sqrt(abs(initialSpeed))*Math.sign(initialSpeed));
 }
 
 function stop(){
@@ -42,16 +42,6 @@ function start(){
 }
 
 function setup() {
-    var initialValue = 2;
-    if (getQueryVariable("value")){
-        initialValue = getQueryVariable("value");
-    }
-    var initialSpeed = 3;
-    if (getQueryVariable("speed")){
-        initialSpeed = getQueryVariable("speed");
-    }
-    console.log(initialSpeed)
-
     // Add UI elements and initialize window.
     createCanvas(windowWidth, windowHeight);
     startButton = createButton("Start");
@@ -60,8 +50,10 @@ function setup() {
     stopButton.mousePressed(stop);
     resetButton = createButton("Reset");
     resetButton.mousePressed(reset);
-    valueSlider = createSlider(1, 501, initialValue, 0.00001);
-    speedSlider = createSlider(-30, 30, sqrt(initialSpeed), 0.00001);
+    valueSlider = createSlider(1, 501, 2, 0.00001);
+    speedSlider = createSlider(-30, 30, 3, 0.00001);
+
+    reset()
     windowResized();
 }
 
